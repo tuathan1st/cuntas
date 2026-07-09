@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cuntas · Tuathan tax tracker</title>
+<meta name="description" content="Self-employed tax tracker: income, expenses, mileage, receipts, HMRC-ready reports.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#151210">
+<style>
+  @font-face{
+    font-family:'BuiltTitling';
+    src:url('fonts/built-titling.woff2') format('woff2'),
+        url('fonts/built-titling.woff') format('woff');
+    font-display:swap;
+  }
+  :root{
+    --ink:#151210; --panel:#201c17; --panel2:#282219; --line:#3a3226;
+    --gold:#c9a24b; --gold-soft:#e2c98c; --cream:#f2ead9; --mut:#9d9384;
+    --green:#8fb573; --red:#d07a5e; --blue:#8aa8c0;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;background:var(--ink);color:var(--cream);
+    font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    padding:20px 14px calc(50px + env(safe-area-inset-bottom));}
+  .wrap{max-width:920px;margin:0 auto;}
+  .brand{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;border-bottom:2px solid var(--gold);padding-bottom:16px;margin-bottom:20px;}
+  h1{font-family:'BuiltTitling',Georgia,serif;font-weight:600;font-size:28px;margin:0;letter-spacing:.06em;text-transform:uppercase;}
+  h1 em{font-style:normal;color:var(--gold);}
+  .sub{color:var(--mut);font-size:12.5px;margin-top:4px;}
+  select,input,button{font-family:inherit;}
+  .yearpick{background:var(--panel);border:1px solid var(--line);color:var(--cream);border-radius:8px;padding:8px 12px;font-size:14px;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
+  .card .ga{color:var(--gold-soft);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;display:block;}
+  .card .lbl{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);}
+  .card .val{font-family:'BuiltTitling',Georgia,serif;font-size:24px;margin-top:5px;font-weight:600;letter-spacing:.03em;}
+  .val.pos{color:var(--green);} .val.neg{color:var(--red);} .val.gold{color:var(--gold);}
+  .panel{background:var(--panel);border:1px solid var(--line);border-top:2px solid var(--gold);border-radius:12px;padding:16px;margin-bottom:12px;}
+  .panel h2{font-family:'BuiltTitling',Georgia,serif;font-size:17px;font-weight:600;margin:0 0 4px;letter-spacing:.05em;text-transform:uppercase;}
+  .panel h2 span{color:var(--gold);}
+  .hint{color:var(--mut);font-size:12.5px;line-height:1.5;margin:2px 0 12px;}
+  .taxrow{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:7px 0;border-bottom:1px dashed var(--line);}
+  .taxrow:last-of-type{border-bottom:none;}
+  .taxrow b{font-weight:600;text-align:right;}
+  .aside{background:var(--panel2);border:1px solid var(--gold);border-radius:10px;padding:12px 14px;margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+  .aside .big{font-family:'BuiltTitling',Georgia,serif;font-size:24px;color:var(--gold);font-weight:600;letter-spacing:.03em;}
+  .aside .note{font-size:12px;color:var(--mut);max-width:340px;}
+  .warn{background:#2b2115;border:1px solid #6d5626;border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--gold-soft);margin-top:10px;line-height:1.5;}
+  .ok{background:#212b1c;border:1px solid #4a6d3a;border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--green);margin-top:10px;line-height:1.5;}
+  .err{background:#2f1d17;border:1px solid #7a4634;border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--red);margin-top:10px;line-height:1.5;}
+  .track{position:relative;height:14px;border-radius:7px;background:var(--panel2);border:1px solid var(--line);margin:26px 2px 30px;}
+  .fill{position:absolute;left:0;top:0;bottom:0;border-radius:7px;background:linear-gradient(90deg,#7a6330,var(--gold));transition:width .5s ease;}
+  .mark{position:absolute;top:-7px;bottom:-7px;width:2px;background:var(--cream);opacity:.65;}
+  .mark span{position:absolute;top:-19px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--mut);white-space:nowrap;}
+  .mark i{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-style:normal;font-size:10px;color:var(--mut);white-space:nowrap;}
+  .tabs{display:flex;gap:6px;margin-bottom:12px;}
+  .tabs button{flex:1;padding:10px 4px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--mut);font-size:12.5px;cursor:pointer;font-weight:500;}
+  .tabs button.on-inc{background:#25301f;border-color:var(--green);color:var(--green);}
+  .tabs button.on-exp{background:#332119;border-color:var(--red);color:var(--red);}
+  .tabs button.on-mil{background:#1f2730;border-color:var(--blue);color:var(--blue);}
+  .frm{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+  .frm .full{grid-column:1/-1;}
+  .frm input,.frm select,.set input{background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--cream);padding:11px 12px;font-size:14px;width:100%;}
+  input:focus,select:focus{outline:2px solid var(--gold);outline-offset:1px;}
+  .add{grid-column:1/-1;padding:13px;border-radius:8px;border:none;background:var(--gold);color:#1a150d;font-weight:600;font-size:14px;cursor:pointer;}
+  .add:active{background:var(--gold-soft);}
+  .bigbtn{width:100%;padding:15px;border-radius:10px;border:1px dashed var(--gold);background:var(--panel2);color:var(--gold-soft);font-size:14px;cursor:pointer;font-weight:500;}
+  .bigbtn:disabled{opacity:.6;}
+  .reportbtn{width:100%;padding:16px;border-radius:10px;border:none;background:var(--gold);color:#1a150d;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:12px;}
+  .qtable{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .qtable th{text-align:left;color:var(--mut);font-weight:500;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;padding:6px 6px;border-bottom:1px solid var(--line);}
+  .qtable td{padding:9px 6px;border-bottom:1px dashed var(--line);}
+  .qtable tr:last-child td{border-bottom:none;}
+  .num{text-align:right;font-variant-numeric:tabular-nums;}
+  .qnow td:first-child{color:var(--gold);font-weight:600;}
+  .qdue{color:var(--mut);font-size:10.5px;display:block;font-weight:400;}
+  .listhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+  .filters button{background:none;border:none;color:var(--mut);font-size:12px;cursor:pointer;padding:4px 8px;border-radius:6px;}
+  .filters button.on{color:var(--gold);background:var(--panel2);}
+  .entry{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line);font-size:13px;}
+  .entry:last-child{border-bottom:none;}
+  .entry .d{color:var(--mut);font-size:11px;min-width:70px;}
+  .entry .info{flex:1;min-width:0;}
+  .entry .c{color:var(--mut);font-size:11px;}
+  .entry .amt{font-weight:600;white-space:nowrap;font-size:12.5px;}
+  .amt.inc{color:var(--green);} .amt.exp{color:var(--red);} .amt.mil{color:var(--blue);}
+  .del{background:none;border:none;color:var(--mut);cursor:pointer;font-size:16px;padding:6px;line-height:1;}
+  .catbar{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;padding:5px 0;color:var(--mut);}
+  .catbar b{color:var(--cream);font-weight:500;white-space:nowrap;}
+  .toolrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px;}
+  .ghost{background:var(--panel2);border:1px solid var(--line);color:var(--cream);border-radius:8px;padding:9px 14px;font-size:13px;cursor:pointer;}
+  .savenote{font-size:11px;color:var(--mut);}
+  .foot{color:var(--mut);font-size:11px;line-height:1.6;margin-top:22px;border-top:1px solid var(--line);padding-top:12px;}
+  .empty{color:var(--mut);font-size:13px;padding:14px 2px;}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+  .chip{display:inline-flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--blue);color:var(--blue);border-radius:20px;padding:7px 12px;font-size:12.5px;cursor:pointer;}
+  .chip .x{color:var(--mut);padding:0 2px;font-size:13px;}
+  .chip .x:active{color:var(--red);}
+  .chkrow{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--mut);align-items:center;grid-column:1/-1;padding:2px 2px;}
+  .chkrow label{display:flex;gap:7px;align-items:center;cursor:pointer;}
+  .chkrow input{width:auto;accent-color:var(--gold);}
+  .bars{display:flex;align-items:flex-end;gap:6px;height:130px;margin-top:10px;}
+  .barcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;min-width:0;}
+  .bar{width:100%;border-radius:4px 4px 0 0;background:linear-gradient(180deg,var(--gold),#7a6330);}
+  .bar.z{background:var(--panel2);}
+  .barl{font-size:9.5px;color:var(--mut);}
+  .barv{font-size:8.5px;color:var(--gold-soft);white-space:nowrap;}
+  .vitem{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--line);font-size:12.5px;}
+  .vitem:last-child{border-bottom:none;}
+  .vitem img{width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex-shrink:0;}
+  .vitem .vd{color:var(--mut);font-size:11px;min-width:70px;}
+  .vitem .vinfo{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .vitem .vs{color:var(--mut);font-size:11px;white-space:nowrap;}
+  .linkbtn{background:none;border:none;color:var(--gold-soft);cursor:pointer;font-size:11px;padding:0;text-decoration:underline;}
+  .chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut);}
+  .chk input{width:auto;}
+  #imgView{display:none;position:fixed;inset:0;background:rgba(10,8,6,.94);z-index:60;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;}
+  #imgView img{max-width:94%;max-height:78%;border-radius:12px;border:1px solid var(--gold);}
+  .set{display:grid;grid-template-columns:1fr;gap:10px;}
+  .set label{font-size:12.5px;color:var(--mut);display:block;margin-bottom:4px;}
+  .setrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  details summary{cursor:pointer;font-size:13px;color:var(--gold-soft);padding:4px 0;}
+  @media(max-width:480px){ .qtable .hidemob{display:none;} .setrow{grid-template-columns:1fr;} }
+
+  /* ============ HMRC REPORT (dyslexia-friendly, letterheaded, printable) ============ */
+  #reportOverlay{display:none;position:fixed;inset:0;z-index:50;background:#faf6ec;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  body.report-open{overflow:hidden;}
+  .rp{max-width:860px;margin:0 auto;padding:26px 22px 60px;color:#2b2620;
+    font-family:Verdana,'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.75;letter-spacing:.01em;}
+  .rp-bar{position:sticky;top:0;background:#2b2620;color:#faf6ec;display:flex;gap:10px;justify-content:flex-end;padding:10px 14px;z-index:5;}
+  .rp-bar button{border:none;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:600;cursor:pointer;}
+  .rp-print{background:#c9a24b;color:#1a150d;}
+  .rp-close{background:#4a423a;color:#faf6ec;}
+  .rp-head{display:flex;align-items:center;gap:18px;border-bottom:4px solid #c9a24b;padding-bottom:18px;margin-bottom:6px;}
+  .rp-head img{width:74px;height:74px;border-radius:14px;}
+  .rp-head .biz{font-family:'BuiltTitling',Georgia,serif;font-size:34px;font-weight:700;color:#1a150d;letter-spacing:.08em;text-transform:uppercase;}
+  .rp-head .tag{color:#6d6357;font-size:13.5px;margin-top:2px;}
+  .rp-contact{color:#6d6357;font-size:12.5px;text-align:right;margin-left:auto;line-height:1.6;}
+  .rp h1{font-family:'BuiltTitling',Georgia,serif;font-size:24px;color:#1a150d;margin:22px 0 2px;letter-spacing:.05em;}
+  .rp .meta{color:#6d6357;font-size:13px;margin-bottom:20px;}
+  .rp-sec{border-radius:14px;padding:18px 20px;margin-bottom:18px;border:2px solid;page-break-inside:avoid;}
+  .rp-sec h2{font-family:'BuiltTitling',Georgia,serif;font-size:19px;margin:0 0 10px;display:flex;align-items:center;gap:10px;letter-spacing:.05em;}
+  .rp-sec.inc{background:#eef4e6;border-color:#7a9e5c;} .rp-sec.inc h2{color:#4a6d2f;}
+  .rp-sec.exp{background:#f9ece5;border-color:#c07a5e;} .rp-sec.exp h2{color:#9c4f33;}
+  .rp-sec.prof{background:#fdf3dc;border-color:#c9a24b;} .rp-sec.prof h2{color:#8a6a1e;}
+  .rp-sec.tax{background:#e9eef4;border-color:#7a94ad;} .rp-sec.tax h2{color:#3f5a75;}
+  .rp-box{display:flex;align-items:baseline;gap:12px;padding:9px 0;border-bottom:1px dashed rgba(0,0,0,.18);flex-wrap:wrap;}
+  .rp-box:last-child{border-bottom:none;}
+  .rp-chip{background:#1a150d;color:#f2ead9;border-radius:7px;padding:3px 10px;font-size:12.5px;font-weight:700;white-space:nowrap;}
+  .rp-sec.inc .rp-chip{background:#4a6d2f;} .rp-sec.exp .rp-chip{background:#9c4f33;}
+  .rp-sec.prof .rp-chip{background:#8a6a1e;} .rp-sec.tax .rp-chip{background:#3f5a75;}
+  .rp-box .l{flex:1;min-width:180px;}
+  .rp-box .v{font-weight:700;font-size:17px;white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .rp-box .src{width:100%;color:#6d6357;font-size:12px;line-height:1.6;}
+  .rp-big{font-family:'BuiltTitling',Georgia,serif;font-size:30px;font-weight:700;letter-spacing:.03em;}
+  .rp-note{font-size:12.5px;color:#6d6357;line-height:1.7;margin-top:8px;}
+  .rp-foot{color:#6d6357;font-size:11.5px;line-height:1.7;border-top:2px solid #c9a24b;padding-top:12px;margin-top:26px;}
+  .rp-shortcut{background:#fdf3dc;border:2px dashed #c9a24b;border-radius:12px;padding:12px 16px;margin-bottom:18px;font-size:13.5px;line-height:1.7;}
+  @media print{
+    body{background:#fff;padding:0;}
+    body.report-open .wrap{display:none;}
+    #reportOverlay{display:block!important;position:static;background:#fff;}
+    .rp-bar{display:none;}
+    .rp{padding:0;max-width:none;}
+    .rp-sec{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brand">
+    <div style="display:flex;align-items:center;gap:14px">
+      <img src="logo.svg" alt="Tuathan" style="height:46px;width:auto" onerror="this.style.display='none'">
+      <div>
+      <h1>Cuntas <em>·</em> Tuathan tax tracker</h1>
+      <div class="sub">Ealaín · Gaeilge · Cuntais — sole trader, North of Ireland</div>
+      </div>
+    </div>
+    <select class="yearpick" id="yearPick" aria-label="Tax year"></select>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <button class="reportbtn" id="reportBtn">📄 Tuairisc HMRC · generate my tax report</button>
+
+  <!-- receipt scanner -->
+  <div class="panel">
+    <h2>Scan admhála <span>·</span> photograph a receipt</h2>
+    <p class="hint">Snap a receipt or invoice. The photo is squashed down to a few dozen kilobytes and saved to your receipts vault below, and a reader built into the app works out the amount, date, shop and category — all on this phone, fully offline, nothing ever leaves the device. Check what it found in the form, then press Add to link entry and photo together.</p>
+    <input type="file" id="receiptFile" accept="image/*" capture="environment" style="display:none">
+    <button class="bigbtn" id="scanBtn">📷 Take or upload a receipt photo</button>
+    <p class="hint" id="scanStatus" style="margin:8px 0 0"></p>
+    <div id="scanMsg"></div>
+  </div>
+
+  <!-- CSV import -->
+  <div class="panel">
+    <h2>Iompórtáil díolachán <span>·</span> import Etsy / SumUp sales</h2>
+    <p class="hint">Download your orders CSV from Etsy (Shop Manager → Settings → Options → Download Data) or your transactions CSV from the SumUp dashboard, then load it here. The app works out which platform it is, creates the income entries in date order, and automatically skips anything already imported — run it as often as you like, you'll never get duplicates.</p>
+    <input type="file" id="csvFile" accept=".csv,text/csv" style="display:none">
+    <button class="bigbtn" id="importBtn">⬇️ Import a sales CSV</button>
+    <div id="importMsg"></div>
+  </div>
+
+  <!-- entry form -->
+  <div class="panel">
+    <h2>Cuir isteach <span>·</span> add an entry</h2>
+    <div class="tabs">
+      <button id="tabInc">+ Ioncam · Income</button>
+      <button id="tabExp">− Costas · Expense</button>
+      <button id="tabMil">🚗 Míleáiste</button>
+    </div>
+    <p class="hint" id="milHint" style="display:none">Where did you drive? The app remembers each destination's miles — after the first trip somewhere, just pick the place and everything fills itself in. It claims HMRC's approved rate for you (45p/mile for the first 10,000 business miles each tax year, 25p after) — this covers fuel and wear, so don't also claim petrol receipts for the same trips. Look up the one-way miles once on Google Maps; never again after that.</p>
+    <div class="frm">
+      <input type="date" id="fDate" aria-label="Date">
+      <select id="fCat" aria-label="Category"></select>
+      <input id="fFrom" placeholder="From (e.g. Home)" style="display:none" aria-label="Trip start">
+      <input id="fTo" list="destList" placeholder="To (e.g. Cultúrlann)" style="display:none" aria-label="Trip destination" autocomplete="off">
+      <input type="number" id="fMilesOne" min="0" step="0.1" placeholder="Miles one way" style="display:none" aria-label="Miles one way">
+      <label class="chk" id="fReturnWrap" style="display:none"><input type="checkbox" id="fReturn" checked> Round trip (there and back)</label>
+      <input class="full" id="fDesc" placeholder="e.g. PCFO at Kelly's Cellars — 18 tickets" aria-label="Description">
+      <input type="number" id="fAmount" min="0" step="0.01" placeholder="£ amount" aria-label="Amount in pounds">
+      <div class="full hint" id="milePreview" style="display:none;margin:0"></div>
+      <button class="add" id="addBtn">Add income</button>
+    </div>
+    <datalist id="destList"></datalist>
+  </div>
+
+  <!-- settings -->
+  <div class="panel">
+    <h2>Socruithe <span>·</span> settings, recurring claims &amp; letterhead</h2>
+    <p class="hint">Set these once. Recurring amounts are claimed automatically for every month of the tax year, and the letterhead details appear on your HMRC report.</p>
+    <div class="set">
+      <div class="setrow">
+        <div>
+          <label for="sPhone">Phone / internet — business share, £ per month</label>
+          <input type="number" id="sPhone" min="0" step="0.01" placeholder="e.g. 15">
+        </div>
+        <div>
+          <label for="sHome">Working from home — £ per month</label>
+          <input type="number" id="sHome" min="0" step="0.01" placeholder="e.g. 10, 18 or 26">
+        </div>
+      </div>
+      <p class="hint" style="margin:0">Phone/internet: the business slice of your bill (e.g. half of a £30 bill = £15). Home working: HMRC's flat rates are £10/month (25–50 hrs at home), £18 (51–100 hrs) or £26 (101+ hrs).</p>
+      <details>
+        <summary>Letterhead details (for the HMRC report)</summary>
+        <div class="set" style="margin-top:8px">
+          <div class="setrow">
+            <div><label for="sBiz">Business name</label><input id="sBiz" placeholder="Tuathan"></div>
+            <div><label for="sOwner">Your name</label><input id="sOwner" placeholder="Your full name"></div>
+          </div>
+          <div class="setrow">
+            <div><label for="sAddr">Address (one line)</label><input id="sAddr" placeholder="Belfast, North of Ireland"></div>
+            <div><label for="sEmail">Email / phone</label><input id="sEmail" placeholder="eolas@tuathan.com"></div>
+          </div>
+          <div><label for="sUtr">UTR — Unique Taxpayer Reference (optional, from HMRC letters)</label><input id="sUtr" placeholder="10 digits"></div>
+          <div><label for="sPay">Payment details for invoices (name, sort code, account no.)</label><input id="sPay" placeholder="Tuathan · 12-34-56 · 12345678"></div>
+        </div>
+      </details>
+      <details>
+        <summary>⚡ Connect AI reading (optional)</summary>
+        <p class="hint">The app reads receipts on this phone by default — free, private, fully offline. If you want sharper reading (crumpled receipts, screenshots, spotting income vs expense), paste an Anthropic API key from console.anthropic.com and press Save. The app will then use AI when you're online and automatically fall back to the on-device reader when you're not. The key stays on this device only; each scan costs a fraction of a penny. Delete the key any time to disconnect.</p>
+        <input type="password" id="sKey" placeholder="sk-ant-...">
+      </details>
+      <button class="add" id="saveSettings">Save settings</button>
+      <div id="setMsg"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="taxPanel"></div>
+  <div class="panel" id="qPanel"></div>
+  <div class="panel" id="monthPanel" style="display:none"></div>
+  <div class="panel" id="thrPanel"></div>
+  <div class="panel" id="catPanel" style="display:none"></div>
+
+  <!-- receipts vault -->
+  <div class="panel">
+    <h2>Taisce admhálacha <span>·</span> receipts vault</h2>
+    <p class="hint" id="vaultHint">Every receipt photo you scan is squashed to a few dozen kilobytes and kept here on this phone, in date order — your evidence file if HMRC ever asks.</p>
+    <button class="bigbtn" id="vaultBtn" style="display:none">🗂 Download all receipts (ZIP)</button>
+    <div id="vaultList"></div>
+  </div>
+
+  <!-- invoice maker -->
+  <div class="panel">
+    <h2>Sonrasc <span>·</span> invoice maker</h2>
+    <p class="hint">For murals, commissions and bookings — a letterheaded invoice in your brand, ready to print or send as a PDF. Numbering and dates are handled for you; your payment details come from Settings.</p>
+    <div class="frm" style="grid-template-columns:2fr 1fr">
+      <input class="full" id="ivClient" placeholder="Client / business name" aria-label="Client name">
+      <input class="full" id="ivAddr" placeholder="Client address or email (optional)" aria-label="Client address">
+      <input id="ivD1" placeholder="Item 1 — e.g. Mural: café back wall" aria-label="Item 1 description">
+      <input type="number" id="ivA1" min="0" step="0.01" placeholder="£" aria-label="Item 1 amount">
+      <input id="ivD2" placeholder="Item 2 (optional)" aria-label="Item 2 description">
+      <input type="number" id="ivA2" min="0" step="0.01" placeholder="£" aria-label="Item 2 amount">
+      <input id="ivD3" placeholder="Item 3 (optional)" aria-label="Item 3 description">
+      <input type="number" id="ivA3" min="0" step="0.01" placeholder="£" aria-label="Item 3 amount">
+      <input id="ivTerms" placeholder="Terms — e.g. Payment within 14 days" aria-label="Terms">
+      <input type="number" id="ivDep" min="0" step="0.01" placeholder="Deposit paid £" aria-label="Deposit already paid">
+      <button class="add" id="ivBtn">Generate invoice</button>
+    </div>
+  </div>
+
+  <!-- entries -->
+  <div class="panel">
+    <div class="listhead">
+      <h2 style="margin:0">Iontrálacha <span>·</span> entries <span id="yearLbl"></span></h2>
+      <div class="filters" id="filters"></div>
+    </div>
+    <div id="list"></div>
+    <div class="toolrow">
+      <button class="ghost" id="csvBtn">CSV backup</button>
+      <button class="ghost" id="bakBtn">Full backup</button>
+      <button class="ghost" id="resBtn">Restore</button>
+      <input type="file" id="resFile" accept=".json,application/json" style="display:none">
+      <span class="savenote" id="saveNote">Entries save automatically on this phone.</span>
+    </div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<div id="imgView"><img id="imgViewImg" alt="Receipt"><button class="ghost">Close</button></div>
+
+<!-- report overlay -->
+<div id="reportOverlay">
+  <div class="rp-bar">
+    <button class="rp-print" id="rpPrint">🖨 Print / save as PDF</button>
+    <button class="rp-close" id="rpClose">Close</button>
+  </div>
+  <div class="rp" id="rpBody"></div>
+</div>
+
+<script>
+// ================= Tax rules: England & Northern Ireland =================
+const TAX_YEARS = {
+  "2026/27": { start:"2026-04-06", end:"2027-04-05", personalAllowance:12570, paTaperStart:100000,
+    basicLimit:50270, higherLimit:125140, class4Lower:12570, class4Upper:50270,
+    class4MainRate:0.06, class4UpperRate:0.02, vatThreshold:90000, mtdThreshold:50000 },
+  "2025/26": { start:"2025-04-06", end:"2026-04-05", personalAllowance:12570, paTaperStart:100000,
+    basicLimit:50270, higherLimit:125140, class4Lower:12570, class4Upper:50270,
+    class4MainRate:0.06, class4UpperRate:0.02, vatThreshold:90000, mtdThreshold:50000 },
+};
+const MR1 = 0.45, MR2 = 0.25, MTIER = 10000;
+const INCOME_CATS = ["Péint agus Ól event","Workshop / class","Etsy order","SumUp / shop sale","Commission","Mural","Other income"];
+const EXPENSE_CATS = ["Materials (paint, canvas...)","Postage & packaging","Venue hire","Platform fees (Etsy, SumUp)","Advertising & marketing","Printing","Website & software","Travel (bus, train, parking)","Phone / internet (business %)","Working from home","Training & courses","Insurance & bank fees","Other expense"];
+
+// SA103S box mapping (Self-employment short form)
+const SA_BOXES = [
+  { box:11, label:"Costs of goods bought for resale or goods used", cats:["Materials (paint, canvas...)"] },
+  { box:12, label:"Car, van and travel expenses", cats:["Travel (bus, train, parking)"], mileage:true },
+  { box:13, label:"Wages, salaries and other staff costs", cats:[] },
+  { box:14, label:"Rent, rates, power and insurance costs", cats:["Venue hire","Working from home","Insurance & bank fees"], recHome:true },
+  { box:15, label:"Repairs and maintenance of property and equipment", cats:[] },
+  { box:16, label:"Phone, fax, stationery and other office costs", cats:["Postage & packaging","Printing","Website & software","Phone / internet (business %)"], recPhone:true },
+  { box:17, label:"Interest and bank and credit card financial charges", cats:[] },
+  { box:18, label:"Accountancy, legal and other professional fees", cats:[] },
+  { box:19, label:"Other allowable business expenses", cats:["Platform fees (Etsy, SumUp)","Advertising & marketing","Training & courses","Other expense"] },
+];
+
+// ================= storage =================
+const mem = {};
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return mem[k] ?? null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch(e){ mem[k]=v; } }
+};
+const E_KEY = "cuntas-entries-v1", S_KEY = "cuntas-settings-v1", T_KEY = "cuntas-trips-v1";
+
+// ---------- receipts vault (IndexedDB: images stored locally on this device) ----------
+let idb = null;
+let pendingImgId = null;
+function openDB(){ return new Promise((res)=>{
+  if (!("indexedDB" in window)) return res(null);
+  const rq = indexedDB.open("cuntas-vault", 1);
+  rq.onupgradeneeded = () => rq.result.createObjectStore("receipts", { keyPath: "id" });
+  rq.onsuccess = () => res(rq.result);
+  rq.onerror = () => res(null);
+});}
+function dbAll(){ return new Promise(res=>{
+  if (!idb) return res([]);
+  const rq = idb.transaction("receipts","readonly").objectStore("receipts").getAll();
+  rq.onsuccess = ()=>res(rq.result||[]); rq.onerror = ()=>res([]);
+});}
+function dbPut(rec){ return new Promise(res=>{
+  if (!idb) return res(false);
+  const rq = idb.transaction("receipts","readwrite").objectStore("receipts").put(rec);
+  rq.onsuccess = ()=>res(true); rq.onerror = ()=>res(false);
+});}
+function dbDel(id){ return new Promise(res=>{
+  if (!idb) return res(false);
+  const rq = idb.transaction("receipts","readwrite").objectStore("receipts").delete(id);
+  rq.onsuccess = ()=>res(true); rq.onerror = ()=>res(false);
+});}
+function dbGet(id){ return new Promise(res=>{
+  if (!idb) return res(null);
+  const rq = idb.transaction("receipts","readonly").objectStore("receipts").get(id);
+  rq.onsuccess = ()=>res(rq.result||null); rq.onerror = ()=>res(null);
+});}
+
+// squash a photo to ~tens of KB: shrink to max 1000px, then step JPEG quality down
+async function compressImage(file){
+  const url = URL.createObjectURL(file);
+  const img = await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url; });
+  URL.revokeObjectURL(url);
+  const MAX = 1000;
+  const sc = Math.min(1, MAX/Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width*sc)), h = Math.max(1, Math.round(img.height*sc));
+  const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+  const cx = cv.getContext("2d");
+  cx.fillStyle = "#fff"; cx.fillRect(0,0,w,h); // flatten transparency for JPEG
+  cx.drawImage(img, 0, 0, w, h);
+  let out = null;
+  for (const q of [0.55, 0.42, 0.32]){
+    out = await new Promise(r => cv.toBlob(r, "image/jpeg", q));
+    if (out && out.size <= 100*1024) break;
+  }
+  return out;
+}
+
+// minimal ZIP builder (stored — JPEGs are already compressed)
+const CRC_T = (()=>{ const t = new Uint32Array(256);
+  for (let n=0;n<256;n++){ let c=n; for (let k=0;k<8;k++) c = (c&1) ? (0xEDB88320 ^ (c>>>1)) : (c>>>1); t[n]=c; }
+  return t; })();
+function crc32(u8){ let c=0xFFFFFFFF; for (let i=0;i<u8.length;i++) c = CRC_T[(c^u8[i])&0xFF] ^ (c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function buildZip(files){
+  const enc = new TextEncoder(); const parts = []; const central = []; let offset = 0;
+  files.forEach(f => {
+    const name = enc.encode(f.name), crc = crc32(f.data), sz = f.data.length;
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true);
+    lh.setUint32(14,crc,true); lh.setUint32(18,sz,true); lh.setUint32(22,sz,true);
+    lh.setUint16(26,name.length,true);
+    parts.push(new Uint8Array(lh.buffer), name, f.data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true); ch.setUint16(4,20,true); ch.setUint16(6,20,true);
+    ch.setUint32(16,crc,true); ch.setUint32(20,sz,true); ch.setUint32(24,sz,true);
+    ch.setUint16(28,name.length,true); ch.setUint32(42,offset,true);
+    central.push(new Uint8Array(ch.buffer), name);
+    offset += 30 + name.length + sz;
+  });
+  let cdSize = 0; central.forEach(p => cdSize += p.length);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true); end.setUint16(8,files.length,true); end.setUint16(10,files.length,true);
+  end.setUint32(12,cdSize,true); end.setUint32(16,offset,true);
+  return new Blob([...parts, ...central, new Uint8Array(end.buffer)], { type: "application/zip" });
+}
+
+let vaultURLs = [];
+async function renderVault(){
+  const recs = (await dbAll()).sort((a,b)=> a.date<b.date ? 1 : b.date<a.date ? -1 : 0);
+  const totalKB = Math.round(recs.reduce((s,r)=>s+(r.size||0),0)/1024);
+  $("vaultHint").textContent = !idb
+    ? "This browser can't store images locally — receipt photos will still be read, but keep the originals in a phone album."
+    : recs.length
+    ? `${recs.length} receipt photo${recs.length===1?"":"s"} stored on this phone in date order — just ${totalKB} KB in total. One tap downloads the lot as your HMRC evidence file.`
+    : "Every receipt photo you scan is squashed to a few dozen kilobytes and kept here on this phone, in date order — your evidence file if HMRC ever asks.";
+  $("vaultBtn").style.display = recs.length ? "" : "none";
+  vaultURLs.forEach(u => URL.revokeObjectURL(u)); vaultURLs = [];
+  $("vaultList").innerHTML = recs.map(r => `
+    <div class="vitem" data-vid="${r.id}">
+      <span class="vd">${r.date}</span>
+      <span class="vinfo">${esc(r.desc||"Receipt")}</span>
+      <span class="vs">${Math.max(1,Math.round((r.size||0)/1024))} KB</span>
+      <button class="del" data-vdel="${r.id}" aria-label="Delete this receipt image">✕</button>
+    </div>`).join("");
+  recs.forEach(r => {
+    const el = document.querySelector(`.vitem[data-vid="${r.id}"]`);
+    if (el && r.blob){
+      const u = URL.createObjectURL(r.blob); vaultURLs.push(u);
+      const im = document.createElement("img"); im.src = u; im.alt = "";
+      el.prepend(im);
+    }
+  });
+}
+
+async function downloadVault(){
+  const recs = (await dbAll()).sort((a,b)=> a.date<b.date ? -1 : b.date<a.date ? 1 : 0);
+  if (!recs.length) return;
+  const files = [];
+  for (const r of recs){
+    const buf = new Uint8Array(await r.blob.arrayBuffer());
+    const safe = (r.desc||"receipt").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,40) || "receipt";
+    files.push({ name: `${r.date}_${safe}_${String(r.id).slice(-4)}.jpg`, data: buf });
+  }
+  const blob = buildZip(files);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "cuntas-receipts.zip"; a.click();
+  URL.revokeObjectURL(url);
+}
+
+let entries = [];
+try { const d = JSON.parse(store.get(E_KEY) || "[]"); if (Array.isArray(d)) entries = d; } catch(e){}
+let settings = { phone:0, home:0, key:"", trips:[], biz:"Tuathan", owner:"", addr:"Belfast, North of Ireland", email:"", utr:"", pay:"", invNo:1 };
+try { Object.assign(settings, JSON.parse(store.get(S_KEY) || "{}")); } catch(e){}
+
+let trips = {};
+try { const t = JSON.parse(store.get(T_KEY) || "{}"); if (t && typeof t === "object") trips = t; } catch(e){}
+const SEED_DESTS = ["Cultúrlann McAdam Ó Fiaich","An Droichead","The Black Box","Kelly's Cellars","Turas","Post Office","Art supplies shop"];
+function renderDestList(){
+  const names = [...new Set([...Object.keys(trips), ...SEED_DESTS])];
+  $("destList").innerHTML = names.map(n=>`<option value="${esc(n)}"></option>`).join("");
+}
+function updateMilePreview(){
+  const one = parseFloat($("fMilesOne").value);
+  const el = $("milePreview");
+  if (isNaN(one) || one <= 0){ el.textContent = "Pick a saved destination or enter the one-way miles."; return; }
+  const total = Math.round(one * ($("fReturn").checked ? 2 : 1) * 10) / 10;
+  el.textContent = `${total} miles this trip → claims ${gbp(total*MR1,2)} at the 45p rate.`;
+}
+
+let yearKey = "2026/27";
+let tab = "income";
+let view = "all";
+
+// ================= helpers =================
+const $ = id => document.getElementById(id);
+const gbp = (n,dp=0) => "£" + Number(n||0).toLocaleString("en-GB",{minimumFractionDigits:dp,maximumFractionDigits:dp});
+const todayISO = () => new Date().toISOString().slice(0,10);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+function monthsElapsed(fromISO, toISO){
+  const a = new Date(fromISO), b = new Date(Math.min(new Date(toISO), new Date()));
+  if (b < a) return 0;
+  return Math.min(12, (b.getFullYear()-a.getFullYear())*12 + (b.getMonth()-a.getMonth()) + 1);
+}
+
+function calcTax(profit, y){
+  const p = Math.max(0, profit);
+  let pa = y.personalAllowance;
+  if (p > y.paTaperStart) pa = Math.max(0, pa - (p - y.paTaperStart)/2);
+  const taxable = Math.max(0, p - pa);
+  const bw = y.basicLimit - y.personalAllowance, hw = y.higherLimit - y.basicLimit;
+  const incomeTax = Math.min(taxable,bw)*0.2 + Math.min(Math.max(0,taxable-bw),hw)*0.4 + Math.max(0,taxable-bw-hw)*0.45;
+  const class4 = Math.min(Math.max(0,p-y.class4Lower), y.class4Upper-y.class4Lower)*y.class4MainRate
+               + Math.max(0,p-y.class4Upper)*y.class4UpperRate;
+  return { incomeTax, class4, total: incomeTax+class4, pa };
+}
+
+function quartersFor(y){
+  const yr = parseInt(y.start.slice(0,4),10);
+  return [
+    { name:"Q1", from:`${yr}-04-06`, to:`${yr}-07-05`, due:`${yr}-08-07` },
+    { name:"Q2", from:`${yr}-07-06`, to:`${yr}-10-05`, due:`${yr}-11-07` },
+    { name:"Q3", from:`${yr}-10-06`, to:`${yr+1}-01-05`, due:`${yr+1}-02-07` },
+    { name:"Q4", from:`${yr+1}-01-06`, to:`${yr+1}-04-05`, due:`${yr+1}-05-07` },
+  ];
+}
+
+function persist(){
+  store.set(E_KEY, JSON.stringify(entries));
+  const n = $("saveNote");
+  n.textContent = "Saved ✓";
+  setTimeout(()=> n.textContent = "Entries save automatically on this phone.", 1500);
+}
+
+// ================= derived =================
+function compute(){
+  const y = TAX_YEARS[yearKey];
+  const inYear = entries.filter(e => e.date >= y.start && e.date <= y.end);
+  const turnover = inYear.filter(e=>e.type==="income").reduce((s,e)=>s+e.amount,0);
+  const manualExp = inYear.filter(e=>e.type==="expense").reduce((s,e)=>s+e.amount,0);
+  const miles = inYear.filter(e=>e.type==="mileage").reduce((s,e)=>s+(e.miles||0),0);
+  const mileage = Math.min(miles,MTIER)*MR1 + Math.max(0,miles-MTIER)*MR2;
+  const months = monthsElapsed(y.start, y.end);
+  const recPhone = (settings.phone||0) * months;
+  const recHome = (settings.home||0) * months;
+  const expenses = manualExp + mileage + recPhone + recHome;
+  const profit = turnover - expenses;
+  const tax = calcTax(profit, y);
+  const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear()-1);
+  const c = cutoff.toISOString().slice(0,10);
+  const rolling12 = entries.filter(e=>e.type==="income" && e.date>=c).reduce((s,e)=>s+e.amount,0);
+  return { y, inYear, turnover, manualExp, miles, mileage, months, recPhone, recHome, expenses, profit, tax, rolling12 };
+}
+
+// ================= render =================
+function render(){
+  const d = compute();
+  const { y, inYear, turnover, expenses, profit, tax, rolling12 } = d;
+  const setAside = tax.total * 1.05;
+  const pct = profit>0 ? (setAside/profit)*100 : 0;
+
+  $("yearLbl").textContent = "(" + yearKey + ")";
+
+  $("cards").innerHTML = `
+    <div class="card"><span class="ga">Láimhdeachas</span><span class="lbl">Turnover</span><div class="val">${gbp(turnover)}</div></div>
+    <div class="card"><span class="ga">Costais</span><span class="lbl">Expenses (all claims)</span><div class="val neg">${gbp(expenses)}</div></div>
+    <div class="card"><span class="ga">Brabús</span><span class="lbl">Profit (taxed on this)</span><div class="val ${profit>=0?"pos":"neg"}">${gbp(profit)}</div></div>
+    <div class="card"><span class="ga">Cáin mheasta</span><span class="lbl">Estimated tax bill</span><div class="val gold">${gbp(tax.total)}</div></div>`;
+
+  let rows = `
+    <h2>An bille <span>·</span> your tax breakdown</h2>
+    <p class="hint">You're taxed on profit, not sales. First ${gbp(tax.pa)} of profit is tax-free (Personal Allowance).</p>
+    <div class="taxrow"><span>Income Tax (20% / 40% / 45% bands)</span><b>${gbp(tax.incomeTax,2)}</b></div>
+    <div class="taxrow"><span>Class 4 National Insurance (6% / 2%)</span><b>${gbp(tax.class4,2)}</b></div>
+    <div class="taxrow"><span>Class 2 NI</span><b>${profit>=7105 ? "£0 — pension year covered free" : "voluntary (protects pension)"}</b></div>`;
+  if (d.mileage>0) rows += `<div class="taxrow"><span>Mileage allowance (${d.miles.toLocaleString()} miles)</span><b>${gbp(d.mileage,2)}</b></div>`;
+  if (d.recPhone>0) rows += `<div class="taxrow"><span>Phone/internet auto-claim (${d.months} months × ${gbp(settings.phone,2)})</span><b>${gbp(d.recPhone,2)}</b></div>`;
+  if (d.recHome>0) rows += `<div class="taxrow"><span>Home working auto-claim (${d.months} months × ${gbp(settings.home,2)})</span><b>${gbp(d.recHome,2)}</b></div>`;
+  rows += `
+    <div class="aside">
+      <div><div style="font-size:12px;color:var(--mut)">Cuir i leataobh · set aside as you earn</div>
+      <div class="big">${gbp(setAside)}</div></div>
+      <div class="note">${profit>0 ? `That's about ${pct.toFixed(0)}% of profit so far (tax + a 5% buffer). Move it to a separate account and January will never hurt.` : "Add income and expenses and I'll tell you how much to put away."}</div>
+    </div>`;
+  if (tax.total>1000) rows += `<div class="warn"><b>Payments on account:</b> because your bill is over £1,000, HMRC will likely also ask for 50% extra in January and another 50% in July as advances on next year. Your first January payment could be around <b>${gbp(tax.total*1.5)}</b>.</div>`;
+  $("taxPanel").innerHTML = rows;
+
+  const mtdActive = rolling12 >= y.mtdThreshold;
+  const monthlyRec = (settings.phone||0)+(settings.home||0);
+  let q = `
+    <h2>Ráithí <span>·</span> quarterly view (Making Tax Digital)</h2>
+    <p class="hint">${mtdActive
+      ? "Your rolling turnover is over £50,000, so you fall under Making Tax Digital: these are the quarterly updates you must submit through approved software, and their deadlines."
+      : "You don't have to report quarterly yet (that only starts once turnover passes £50,000) — but this is exactly how HMRC will group your figures when it does, so you're ready in advance."}</p>
+    <table class="qtable"><thead><tr><th>Quarter</th><th class="hidemob">Period</th><th class="num">Income</th><th class="num">Expenses</th><th class="num">Profit</th></tr></thead><tbody>`;
+  const today = todayISO();
+  quartersFor(y).forEach(qt => {
+    const qe = inYear.filter(e => e.date>=qt.from && e.date<=qt.to);
+    const inc = qe.filter(e=>e.type==="income").reduce((s,e)=>s+e.amount,0);
+    let exp = qe.filter(e=>e.type==="expense").reduce((s,e)=>s+e.amount,0);
+    exp += qe.filter(e=>e.type==="mileage").reduce((s,e)=>s+(e.miles||0),0)*MR1;
+    exp += monthlyRec * monthsElapsed(qt.from, qt.to);
+    const cur = today>=qt.from && today<=qt.to;
+    q += `<tr class="${cur?"qnow":""}"><td>${qt.name}${cur?" · now":""}<span class="qdue">update due ${qt.due}</span></td>
+      <td class="hidemob" style="color:var(--mut);font-size:11px">${qt.from} → ${qt.to}</td>
+      <td class="num" style="color:var(--green)">${gbp(inc)}</td>
+      <td class="num" style="color:var(--red)">${gbp(exp)}</td>
+      <td class="num"><b>${gbp(inc-exp)}</b></td></tr>`;
+  });
+  q += `</tbody></table>`;
+  $("qPanel").innerHTML = q;
+
+  // monthly income bars (tax-year order: Apr..Mar)
+  const mNames = ["Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar"];
+  const mTotals = new Array(12).fill(0);
+  inYear.filter(e=>e.type==="income").forEach(e => {
+    const mo = +e.date.slice(5,7);
+    mTotals[(mo+8)%12] += e.amount;
+  });
+  const mMax = Math.max.apply(null, mTotals);
+  if (mMax > 0){
+    $("monthPanel").style.display = "";
+    $("monthPanel").innerHTML = `<h2>Ioncam míosúil <span>·</span> income by month</h2>
+      <p class="hint">Your seasonality at a glance — handy for planning PCFO dates, stock and quiet-month savings.</p>
+      <div class="bars">` + mTotals.map((v,i)=>`
+        <div class="barcol"><span class="barv">${v>0?gbp(v):""}</span><div class="bar ${v>0?"":"z"}" style="height:${v>0?Math.max(3,Math.round(v/mMax*100)):3}%"></div><span class="barl">${mNames[i]}</span></div>`).join("") + `</div>`;
+  } else $("monthPanel").style.display = "none";
+
+  const vatPct = Math.min(100,(rolling12/y.vatThreshold)*100);
+  const mtdPos = (y.mtdThreshold/y.vatThreshold)*100;
+  let t = `
+    <h2>Tairseacha <span>·</span> VAT &amp; digital reporting watch</h2>
+    <p class="hint">Rolling 12-month turnover: <b>${gbp(rolling12)}</b>. VAT only applies if this passes ${gbp(y.vatThreshold)} — below that you don't charge or pay VAT. At ${gbp(y.mtdThreshold)} turnover, quarterly digital reporting becomes mandatory.</p>
+    <div class="track" role="img" aria-label="Turnover progress toward MTD and VAT thresholds">
+      <div class="fill" style="width:${vatPct}%"></div>
+      <div class="mark" style="left:${mtdPos}%"><span>MTD ${gbp(y.mtdThreshold)}</span></div>
+      <div class="mark" style="left:100%"><span>VAT ${gbp(y.vatThreshold)}</span></div>
+      <div class="mark" style="left:${Math.min(100,vatPct)}%;background:var(--gold);opacity:1"><i>you · ${gbp(rolling12)}</i></div>
+    </div>`;
+  if (rolling12>=y.mtdThreshold && rolling12<y.vatThreshold) t += `<div class="warn">You've passed £50,000 rolling turnover — you now fall under Making Tax Digital and need approved software for quarterly updates to HMRC.</div>`;
+  if (rolling12>=y.vatThreshold) t += `<div class="warn">You've passed the VAT threshold — you must register for VAT with HMRC within 30 days. Talk to an accountant now.</div>`;
+  $("thrPanel").innerHTML = t;
+
+  const m = {};
+  inYear.filter(e=>e.type==="expense").forEach(e => m[e.cat]=(m[e.cat]||0)+e.amount);
+  const list = Object.entries(m).sort((a,b)=>b[1]-a[1]);
+  if (d.mileage>0) list.push([`Mileage allowance (${d.miles.toLocaleString()} miles @ 45p/25p)`, d.mileage]);
+  if (d.recPhone>0) list.push([`Phone / internet auto-claim`, d.recPhone]);
+  if (d.recHome>0) list.push([`Working from home auto-claim`, d.recHome]);
+  if (list.length){
+    $("catPanel").style.display = "";
+    $("catPanel").innerHTML = `<h2>Costais de réir catagóire <span>·</span> expenses by category</h2>
+      <p class="hint">These feed the SA103S boxes in your HMRC report.</p>` +
+      list.map(([c,v])=>`<div class="catbar"><span>${esc(c)}</span><b>${gbp(v,2)}</b></div>`).join("");
+  } else $("catPanel").style.display = "none";
+
+  $("filters").innerHTML = ["all","income","expense","mileage"].map(v =>
+    `<button data-v="${v}" class="${view===v?"on":""}">${v==="all"?"All":v[0].toUpperCase()+v.slice(1)}</button>`).join("");
+  const shown = inYear.filter(e => view==="all" ? true : e.type===view)
+    .slice().sort((a,b)=> a.date<b.date ? 1 : b.date<a.date ? -1 : 0);
+  $("list").innerHTML = shown.length ? shown.map(e => `
+    <div class="entry">
+      <span class="d">${e.date}</span>
+      <div class="info"><div>${esc(e.desc)}</div><div class="c">${esc(e.cat)}${e.ext?" · imported":""}${e.imgId?` · <button class="linkbtn" data-img="${e.imgId}">📎 receipt</button>`:""}</div></div>
+      <span class="amt ${e.type==="income"?"inc":e.type==="mileage"?"mil":"exp"}">
+        ${e.type==="income" ? "+"+gbp(e.amount,2) : e.type==="mileage" ? `${e.miles} mi (~${gbp(e.miles*MR1,2)})` : "−"+gbp(e.amount,2)}
+      </span>
+      <button class="del" data-edit="${e.id}" aria-label="Edit ${esc(e.desc)}" style="font-size:13px">✎</button>
+      <button class="del" data-id="${e.id}" aria-label="Delete ${esc(e.desc)}">✕</button>
+    </div>`).join("")
+    : `<div class="empty">Nothing here yet for ${yearKey}. Add your first entry — even rough figures give you a working estimate.</div>`;
+
+  $("foot").innerHTML = `Estimates only, using ${yearKey} rates for England &amp; Northern Ireland: Personal Allowance £12,570 · Income Tax 20/40/45% · Class 4 NI 6% then 2% · Mileage 45p/25p · VAT registration at £90,000 rolling turnover · Making Tax Digital at £50,000. Keep bills and receipt photos — HMRC can ask for records up to 5 years after the filing deadline. This isn't professional tax advice. File and pay by 31 January following the tax year end. Your data lives only on this device.`;
+}
+
+// ================= form / tabs =================
+function fillCats(){
+  const cats = tab==="income" ? INCOME_CATS : EXPENSE_CATS;
+  $("fCat").innerHTML = cats.map(c=>`<option>${esc(c)}</option>`).join("");
+}
+function setTab(t){
+  tab = t;
+  $("tabInc").className = t==="income" ? "on-inc" : "";
+  $("tabExp").className = t==="expense" ? "on-exp" : "";
+  $("tabMil").className = t==="mileage" ? "on-mil" : "";
+  const isMil = t==="mileage";
+  $("milHint").style.display = isMil ? "" : "none";
+  ["fFrom","fTo","fMilesOne","fReturnWrap","milePreview"].forEach(id => $(id).style.display = isMil ? "" : "none");
+  $("fCat").style.display = isMil ? "none" : "";
+  $("fAmount").style.display = isMil ? "none" : "";
+  $("fDesc").style.display = isMil ? "none" : "";
+  $("fDesc").placeholder = t==="income" ? "e.g. PCFO at Kelly's Cellars — 18 tickets"
+    : "e.g. Royal Mail postage, 6 Etsy orders";
+  $("addBtn").textContent = t==="income" ? "Add income" : t==="expense" ? "Add expense" : "Add trip";
+  if (isMil){ if (!$("fFrom").value) $("fFrom").value = "Home"; renderDestList(); updateMilePreview(); }
+  else fillCats();
+}
+
+let editingId = null;
+function startEdit(id){
+  const en = entries.find(x => x.id === id);
+  if (!en) return;
+  if (en.type === "mileage"){
+    setTab("mileage");
+    const parts = en.desc.split(" → ");
+    const round = parts.length === 3 && parts[0] === parts[2];
+    $("fFrom").value = parts[0] || "Home";
+    $("fTo").value = parts[1] || "";
+    $("fReturn").checked = round;
+    $("fMilesOne").value = round ? Math.round(en.miles/2*10)/10 : en.miles;
+    updateMilePreview();
+  } else {
+    setTab(en.type);
+    $("fDesc").value = en.desc;
+    $("fCat").value = en.cat;
+    $("fAmount").value = en.amount;
+  }
+  $("fDate").value = en.date;
+  editingId = id;
+  $("addBtn").textContent = "✎ Save changes";
+  $("addBtn").scrollIntoView({ behavior:"smooth", block:"center" });
+}
+function cancelEdit(){
+  editingId = null;
+  $("addBtn").textContent = tab==="income" ? "Add income" : tab==="expense" ? "Add expense" : "Add trip";
+}
+
+function addEntry(){
+  const date = $("fDate").value;
+  if (!date) return;
+  let entry;
+  if (tab==="mileage"){
+    const from = $("fFrom").value.trim() || "Home";
+    const to = $("fTo").value.trim();
+    const one = parseFloat($("fMilesOne").value);
+    if (!to || isNaN(one) || one<=0) return;
+    const ret = $("fReturn").checked;
+    const miles = Math.round(one * (ret?2:1) * 10) / 10;
+    const desc = ret ? `${from} → ${to} → ${from}` : `${from} → ${to}`;
+    trips[to] = one;                       // remember this destination
+    store.set(T_KEY, JSON.stringify(trips));
+    entry = { id: editingId || uid(), type:"mileage", date, desc, cat:"Business mileage (own car)", miles, amount:0 };
+    $("fTo").value = ""; $("fMilesOne").value = ""; renderDestList(); updateMilePreview();
+  } else {
+    const desc = $("fDesc").value.trim();
+    if (!desc) return;
+    const amt = parseFloat($("fAmount").value);
+    if (isNaN(amt) || amt<=0) return;
+    entry = { id: editingId || uid(), type: tab, date, desc, cat: $("fCat").value, amount: Math.round(amt*100)/100 };
+    if (pendingImgId){ entry.imgId = pendingImgId; pendingImgId = null; }
+  }
+  if (editingId){
+    const old = entries.find(x => x.id === editingId);
+    if (old){ if (old.ext) entry.ext = old.ext; if (old.imgId && !entry.imgId) entry.imgId = old.imgId; }
+    entries = entries.map(x => x.id === editingId ? entry : x);
+    cancelEdit();
+  } else {
+    entries.unshift(entry);
+  }
+  persist();
+  $("fDesc").value = ""; $("fAmount").value = "";
+  render();
+}
+
+// ================= CSV import (Etsy / SumUp) =================
+function parseCSV(text){
+  const rows = []; let row = [], cell = "", inQ = false;
+  for (let i=0;i<text.length;i++){
+    const ch = text[i];
+    if (inQ){
+      if (ch==='"'){ if (text[i+1]==='"'){ cell+='"'; i++; } else inQ=false; }
+      else cell += ch;
+    } else {
+      if (ch==='"') inQ = true;
+      else if (ch===',' ){ row.push(cell); cell=""; }
+      else if (ch==='\n' || ch==='\r'){
+        if (ch==='\r' && text[i+1]==='\n') i++;
+        row.push(cell); cell="";
+        if (row.some(c=>c.trim()!=="")) rows.push(row);
+        row = [];
+      }
+      else cell += ch;
+    }
+  }
+  row.push(cell);
+  if (row.some(c=>c.trim()!=="")) rows.push(row);
+  return rows;
+}
+
+function parseMoney(s){
+  if (s==null) return NaN;
+  const n = parseFloat(String(s).replace(/[£$€,\s]/g,""));
+  return isNaN(n) ? NaN : n;
+}
+
+function parseDateFlexible(s, hint){
+  if (!s) return null;
+  s = String(s).trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); // ISO, maybe with time
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4})/); // slashed
+  if (m){
+    let a=+m[1], b=+m[2], yr=+m[3];
+    if (yr<100) yr += 2000;
+    let mo, day;
+    if (a>12){ day=a; mo=b; }
+    else if (b>12){ mo=a; day=b; }
+    else if (hint==="etsy"){ mo=a; day=b; }     // Etsy: MM/DD
+    else { day=a; mo=b; }                        // UK default: DD/MM
+    if (mo<1||mo>12||day<1||day>31) return null;
+    return `${yr}-${String(mo).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+  }
+  const months = {january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,
+    jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+  m = s.toLowerCase().match(/([a-z]+)\s+(\d{1,2}),?\s+(\d{4})/) || s.toLowerCase().match(/(\d{1,2})\s+([a-z]+),?\s+(\d{4})/);
+  if (m){
+    let mo, day, yr;
+    if (isNaN(+m[1])){ mo = months[m[1]]; day = +m[2]; yr = +m[3]; }
+    else { day = +m[1]; mo = months[m[2]]; yr = +m[3]; }
+    if (mo) return `${yr}-${String(mo).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+  }
+  return null;
+}
+
+function findCol(headers, ...needles){
+  for (const n of needles){
+    const i = headers.findIndex(h => h.includes(n));
+    if (i !== -1) return i;
+  }
+  return -1;
+}
+
+function importCSVText(text){
+  const rows = parseCSV(text);
+  if (rows.length < 2) return { error: "That file looks empty — check it's the CSV export and try again." };
+  const headers = rows[0].map(h => h.toLowerCase().trim());
+
+  let platform = "generic";
+  if (findCol(headers,"order id") !== -1 && findCol(headers,"sale date") !== -1) platform = "etsy";
+  else if (findCol(headers,"transaction code") !== -1 || findCol(headers,"transaction id") !== -1 || findCol(headers,"payment type","payment method") !== -1) platform = "sumup";
+
+  const dateCol = findCol(headers,"sale date","transaction date","timestamp","date");
+  const amtCol = platform==="etsy"
+    ? findCol(headers,"order total","order value","total")
+    : findCol(headers,"amount incl","gross","amount","total");
+  const idCol = findCol(headers,"order id","transaction code","transaction id","receipt","reference","id");
+  const nameCol = findCol(headers,"full name","buyer","description","card","payment type","payment method");
+  const statusCol = findCol(headers,"status");
+
+  if (dateCol===-1 || amtCol===-1)
+    return { error: "I couldn't find date and amount columns in that file. Make sure it's the orders/transactions CSV straight from Etsy or SumUp." };
+
+  const existingExt = new Set(entries.filter(e=>e.ext).map(e=>e.ext));
+  const existingSig = new Set(entries.map(e=>e.type+"|"+e.date+"|"+(e.amount||0).toFixed(2)+"|"+e.desc));
+  let added=0, dupes=0, skipped=0;
+  const newOnes = [];
+
+  for (let r=1;r<rows.length;r++){
+    const row = rows[r];
+    if (statusCol!==-1){
+      const st = (row[statusCol]||"").toLowerCase();
+      if (st && !/success|paid|complete|settled/.test(st)){ skipped++; continue; }
+    }
+    const amount = parseMoney(row[amtCol]);
+    const date = parseDateFlexible(row[dateCol], platform);
+    if (!date || isNaN(amount) || amount<=0){ skipped++; continue; }
+
+    const extId = idCol!==-1 && row[idCol] ? platform+":"+String(row[idCol]).trim() : null;
+    const who = nameCol!==-1 ? String(row[nameCol]||"").trim() : "";
+    const desc = platform==="etsy"
+      ? `Etsy order${idCol!==-1?" #"+String(row[idCol]).trim():""}${who?" — "+who:""}`
+      : platform==="sumup"
+      ? `SumUp sale${who?" — "+who:""}${extId?" ("+String(row[idCol]).trim()+")":""}`
+      : `Imported sale${who?" — "+who:""}`;
+    const cat = platform==="etsy" ? "Etsy order" : platform==="sumup" ? "SumUp / shop sale" : "Other income";
+
+    if (extId && existingExt.has(extId)){ dupes++; continue; }
+    const sig = "income|"+date+"|"+amount.toFixed(2)+"|"+desc;
+    if (!extId && existingSig.has(sig)){ dupes++; continue; }
+
+    const entry = { id:uid(), type:"income", date, desc, cat, amount: Math.round(amount*100)/100 };
+    if (extId){ entry.ext = extId; existingExt.add(extId); }
+    existingSig.add(sig);
+    newOnes.push(entry);
+    added++;
+  }
+
+  if (added){
+    entries = entries.concat(newOnes);
+    entries.sort((a,b)=> a.date<b.date ? 1 : b.date<a.date ? -1 : 0);
+    persist();
+    render();
+  }
+  const pName = platform==="etsy" ? "Etsy" : platform==="sumup" ? "SumUp" : "sales";
+  return { ok:`Recognised a ${pName} file: imported ${added} new sale${added===1?"":"s"} in date order${dupes?`, skipped ${dupes} already imported`:""}${skipped?`, ignored ${skipped} refunded/unreadable row${skipped===1?"":"s"}`:""}.` };
+}
+
+// ================= receipt scanning + vault storage (fully on-device, no AI, no internet) =================
+let ocrWorker = null, ocrState = "unloaded"; // unloaded | loading | ready | missing
+
+function loadScript(src){ return new Promise((res,rej)=>{
+  const s = document.createElement("script");
+  s.src = src; s.onload = res; s.onerror = ()=>rej(new Error("missing "+src));
+  document.head.appendChild(s);
+});}
+
+async function getOCR(){
+  if (ocrState === "ready") return ocrWorker;
+  if (ocrState === "missing") return null;
+  try {
+    ocrState = "loading";
+    if (!window.Tesseract) await loadScript("vendor/tesseract.min.js");
+    ocrWorker = await Tesseract.createWorker("eng", 1, {
+      workerPath: "vendor/worker.min.js",
+      corePath: "vendor/tesseract-core-simd-lstm.wasm.js",
+      langPath: "vendor",
+      gzip: true
+    });
+    ocrState = "ready";
+    return ocrWorker;
+  } catch(e){
+    ocrState = "missing";
+    return null;
+  }
+}
+
+// rule-based understanding of the text the OCR engine reads
+const CAT_RULES = [
+  [/royal mail|post office|postage|parcel|packlink|evri|hermes|dpd|shipping/i, "Postage & packaging"],
+  [/b&q|b & q|screwfix|hobbycraft|cass art|paint|canvas|brush|easel|acrylic|craft/i, "Materials (paint, canvas...)"],
+  [/etsy|sumup/i, "Platform fees (Etsy, SumUp)"],
+  [/netlify|domain|hosting|adobe|canva|software|subscription/i, "Website & software"],
+  [/facebook|instagram|meta ads|advert|flyer|promotion/i, "Advertising & marketing"],
+  [/print/i, "Printing"],
+  [/translink|train|bus|rail|parking|taxi|fuel|petrol|diesel/i, "Travel (bus, train, parking)"],
+  [/vodafone|o2|three|virgin media|broadband|mobile/i, "Phone / internet (business %)"],
+  [/insurance/i, "Insurance & bank fees"],
+  [/course|training|tuition/i, "Training & courses"],
+  [/venue|hall|room hire/i, "Venue hire"],
+];
+
+function parseReceiptText(text){
+  const lines = text.split(/\n+/).map(l=>l.trim()).filter(Boolean);
+  // amount: prefer money on a line saying total / amount due / paid; otherwise the largest figure
+  let best = null, max = null;
+  for (const l of lines){
+    const low = l.toLowerCase();
+    const money = /(?:£|gbp)?\s?(\d{1,5}[.,]\d{2})\b/gi;
+    let m;
+    while ((m = money.exec(l))){
+      const v = parseFloat(m[1].replace(",","."));
+      if (isNaN(v) || v <= 0 || v > 99999) continue;
+      if (/total|amount due|amount paid|to pay|balance|card|paid/.test(low)){
+        if (best === null || v > best) best = v;
+      }
+      if (max === null || v > max) max = v;
+    }
+  }
+  const amount = best !== null ? best : max;
+  // date: UK receipts read DD/MM
+  let date = null;
+  for (const l of lines){
+    date = parseDateFlexible(l, "sumup");
+    if (date) break;
+  }
+  if (date && (date > todayISO() || date < "2020-01-01")) date = null;
+  // merchant: first meaningful line near the top
+  let merchant = null;
+  for (const l of lines.slice(0,6)){
+    if (/receipt|invoice|vat|tel|www\.|http|thank/i.test(l)) continue;
+    if ((l.match(/[a-z]/gi)||[]).length >= 3){ merchant = l.replace(/\s{2,}/g," ").slice(0,40); break; }
+  }
+  let cat = "Other expense";
+  for (const [re,c] of CAT_RULES){ if (re.test(text)){ cat = c; break; } }
+  return { amount, date, merchant, cat };
+}
+
+// AI reading (optional upgrade — only used if a key is connected and you're online)
+async function aiRead(blob, file){
+  const base64 = await new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload = ()=>res(r.result.split(",")[1]);
+    r.onerror = ()=>rej(new Error("read failed"));
+    r.readAsDataURL(blob);
+  });
+  const prompt = `You are reading a photo of a receipt, invoice or payment screenshot for a small Belfast art business (paint-and-sip events, Etsy shop, murals, workshops).
+Extract the details and respond with ONLY a JSON object, no markdown fences, no other text:
+{"type":"expense" or "income","date":"YYYY-MM-DD" or null,"description":"short plain description","category":one of ${JSON.stringify(EXPENSE_CATS)} for expenses or one of ${JSON.stringify(INCOME_CATS)} for income,"amount":total as a number or null}
+Most receipts are expenses. Pick the closest category.`;
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "x-api-key": settings.key,
+      "anthropic-version":"2023-06-01",
+      "anthropic-dangerous-direct-browser-access":"true"
+    },
+    body: JSON.stringify({
+      model:"claude-sonnet-4-6",
+      max_tokens:1000,
+      messages:[{ role:"user", content:[
+        { type:"image", source:{ type:"base64", media_type: blob.type || file.type, data:base64 } },
+        { type:"text", text:prompt }
+      ]}]
+    })
+  });
+  const data = await resp.json();
+  if (data.error) throw new Error(data.error.message || "API error");
+  const text = (data.content||[]).map(i=>i.type==="text"?i.text:"").join("\n").replace(/```json|```/g,"").trim();
+  const p = JSON.parse(text);
+  if (!p || p.amount == null) return null;
+  return {
+    type: p.type === "income" ? "income" : "expense",
+    date: (p.date && /^\d{4}-\d{2}-\d{2}$/.test(p.date)) ? p.date : null,
+    description: p.description || null,
+    category: p.category || null,
+    amount: p.amount
+  };
+}
+
+function updateScanStatus(){
+  const el = $("scanStatus");
+  if (!el) return;
+  el.textContent = settings.key
+    ? "Reader: ⚡ AI connected, with the on-device reader as offline backup."
+    : "Reader: on-device — private, free, works with no signal.";
+}
+
+async function scanReceipt(file){
+  const msg = $("scanMsg");
+  if (!file) return;
+  if (!file.type.startsWith("image/")){ msg.innerHTML = `<div class="err">Please choose a photo (JPG or PNG).</div>`; return; }
+  $("scanBtn").disabled = true;
+  $("scanBtn").textContent = "Squashing the photo…";
+  msg.innerHTML = "";
+
+  // 1) compress hard and prepare the evidence record — this always happens
+  let blob = null;
+  try { blob = await compressImage(file); } catch(e){}
+  if (!blob) blob = file;
+  const rec = { id: uid(), date: todayISO(), desc: "Receipt", blob, size: blob.size };
+  const kb = Math.max(1, Math.round(blob.size/1024));
+
+  try {
+    // 2) the reading cascade: AI (if connected + online) → on-device reader → vault only
+    let result = null, via = null;
+    if (settings.key && navigator.onLine){
+      $("scanBtn").textContent = "Reading with AI…";
+      try { result = await aiRead(blob, file); if (result) via = "ai"; } catch(e){ result = null; }
+    }
+    if (!result){
+      const worker = await getOCR();
+      if (worker){
+        $("scanBtn").textContent = "Reading on this phone…";
+        try {
+          const { data } = await worker.recognize(blob);
+          const p = parseReceiptText(data.text || "");
+          if (p.amount != null){
+            result = { type:"expense", date:p.date, description:p.merchant, category:p.cat, amount:p.amount };
+            via = "ocr";
+          }
+        } catch(e){}
+      }
+    }
+
+    // 3) act on what was read
+    if (!result){
+      if (idb){ await dbPut(rec); renderVault(); }
+      msg.innerHTML = ocrState === "missing" && !settings.key
+        ? `<div class="ok">Photo squashed to ${kb} KB and saved to your vault. No reader is available (add the vendor files — see README — or connect AI in Settings). Type the entry in below.</div>`
+        : `<div class="err">I couldn't make out an amount (photo still saved, ${kb} KB) — try a straight-on, well-lit shot, or type it in below.</div>`;
+    } else {
+      setTab(result.type);
+      const cats = result.type === "income" ? INCOME_CATS : EXPENSE_CATS;
+      const rDate = result.date || todayISO();
+      $("fDate").value = rDate;
+      $("fDesc").value = result.description || "Scanned receipt";
+      $("fCat").value = cats.includes(result.category) ? result.category : cats[cats.length-1];
+      $("fAmount").value = result.amount;
+      rec.date = rDate;
+      rec.desc = result.description || "Receipt";
+      if (idb){ await dbPut(rec); renderVault(); pendingImgId = rec.id; }
+      const how = via === "ai" ? "Read with AI" : "Read on this phone — nothing left your device";
+      msg.innerHTML = `<div class="ok">${how}. Found ${esc(result.description||"a receipt")} — ${gbp(result.amount,2)}${result.date?"":" (couldn't read the date, so I've used today)"}. Photo saved (${kb} KB). Check the form, then press Add to link them.</div>`;
+    }
+  } catch(e){
+    if (idb){ await dbPut(rec); renderVault(); }
+    msg.innerHTML = `<div class="err">The reader stumbled on that photo (${esc(e.message||"error")}) — it's still saved to your vault (${kb} KB). Add the entry by hand.</div>`;
+  } finally {
+    $("scanBtn").disabled = false;
+    $("scanBtn").textContent = "📷 Take or upload a receipt photo";
+  }
+}
+
+// ================= HMRC report =================
+function buildReport(){
+  const d = compute();
+  const { y, inYear, turnover, tax } = d;
+  const r0 = n => gbp(Math.round(n)); // HMRC wants whole pounds
+
+  // category totals
+  const catTotals = {};
+  inYear.filter(e=>e.type==="expense").forEach(e => catTotals[e.cat]=(catTotals[e.cat]||0)+e.amount);
+
+  // build box values
+  const boxes = SA_BOXES.map(b => {
+    let v = 0; const src = [];
+    b.cats.forEach(c => { if (catTotals[c]){ v += catTotals[c]; src.push(`${c}: ${gbp(catTotals[c],2)}`); } });
+    if (b.mileage && d.mileage>0){ v += d.mileage; src.push(`Mileage allowance (${d.miles.toLocaleString()} miles @ 45p/25p): ${gbp(d.mileage,2)}`); }
+    if (b.recPhone && d.recPhone>0){ v += d.recPhone; src.push(`Phone/internet auto-claim (${d.months} months): ${gbp(d.recPhone,2)}`); }
+    if (b.recHome && d.recHome>0){ v += d.recHome; src.push(`Working from home auto-claim (${d.months} months): ${gbp(d.recHome,2)}`); }
+    return { ...b, value: v, src };
+  });
+  const box20 = boxes.reduce((s,b)=>s+b.value,0);
+  const box21 = turnover - box20;
+
+  const incomeByCat = {};
+  inYear.filter(e=>e.type==="income").forEach(e => incomeByCat[e.cat]=(incomeByCat[e.cat]||0)+e.amount);
+  const incSrc = Object.entries(incomeByCat).sort((a,b)=>b[1]-a[1]).map(([c,v])=>`${c}: ${gbp(v,2)}`).join(" · ");
+
+  const nowStr = new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
+
+  $("rpBody").innerHTML = `
+    <div class="rp-head">
+      <img src="logo.svg" alt="${esc(settings.biz||"Tuathan")} logo" onerror="this.onerror=null;this.src='icon-192.png'">
+      <div>
+        <div class="biz">${esc(settings.biz||"Tuathan")}</div>
+        <div class="tag">Irish language &amp; art · Ealaín agus Gaeilge</div>
+      </div>
+      <div class="rp-contact">
+        ${settings.owner?esc(settings.owner)+"<br>":""}
+        ${settings.addr?esc(settings.addr)+"<br>":""}
+        ${settings.email?esc(settings.email)+"<br>":""}
+        ${settings.utr?"UTR: "+esc(settings.utr):""}
+      </div>
+    </div>
+
+    <h1>Self Assessment summary — tax year ${esc(yearKey)}</h1>
+    <div class="meta">Prepared ${nowStr} · Sole trader · Figures follow HMRC form SA103S (Self-employment, short) · Whole pounds shown for form boxes</div>
+
+    <div class="rp-shortcut">💡 <b>The easy option:</b> because your turnover is under £90,000, HMRC lets you skip boxes 11–19 entirely and just put your <b>total expenses (${r0(box20)})</b> straight into <b>box 20</b>. The full breakdown below is there if you want it — or for your accountant.</div>
+
+    <div class="rp-sec inc">
+      <h2>🟢 Money in — Ioncam</h2>
+      <div class="rp-box"><span class="rp-chip">Box 9</span><span class="l">Turnover — takings, fees, sales</span><span class="v rp-big">${r0(turnover)}</span>
+        ${incSrc?`<span class="src">Made up of — ${esc(incSrc)}</span>`:""}
+      </div>
+      <div class="rp-box"><span class="rp-chip">Box 10</span><span class="l">Any other business income</span><span class="v">£0</span></div>
+    </div>
+
+    <div class="rp-sec exp">
+      <h2>🔴 Money out — Costais</h2>
+      ${boxes.map(b=>`
+        <div class="rp-box"><span class="rp-chip">Box ${b.box}</span><span class="l">${esc(b.label)}</span><span class="v">${r0(b.value)}</span>
+          ${b.src.length?`<span class="src">Made up of — ${esc(b.src.join(" · "))}</span>`:""}
+        </div>`).join("")}
+      <div class="rp-box"><span class="rp-chip">Box 20</span><span class="l"><b>Total allowable expenses</b></span><span class="v rp-big">${r0(box20)}</span></div>
+    </div>
+
+    <div class="rp-sec prof">
+      <h2>🟡 Your profit — Brabús</h2>
+      <div class="rp-box"><span class="rp-chip">Box ${box21>=0?"21":"22"}</span><span class="l">${box21>=0?"Net profit (box 9 minus box 20)":"Net loss"}</span><span class="v rp-big">${r0(Math.abs(box21))}</span></div>
+      <div class="rp-note">This is the number you're taxed on — not your turnover.</div>
+    </div>
+
+    <div class="rp-sec tax">
+      <h2>🔵 Estimated tax — Cáin mheasta</h2>
+      <div class="rp-box"><span class="l">Income Tax (after ${gbp(tax.pa)} Personal Allowance)</span><span class="v">${gbp(tax.incomeTax,2)}</span></div>
+      <div class="rp-box"><span class="l">Class 4 National Insurance</span><span class="v">${gbp(tax.class4,2)}</span></div>
+      <div class="rp-box"><span class="l"><b>Total estimated bill</b></span><span class="v rp-big">${gbp(tax.total,2)}</span></div>
+      ${tax.total>1000?`<div class="rp-note">⚠️ Bills over £1,000 usually trigger <b>payments on account</b>: HMRC adds a 50% advance for next year in January and another 50% in July — so the January payment could be around <b>${gbp(tax.total*1.5)}</b>.</div>`:""}
+      <div class="rp-note">These tax figures are estimates for planning — HMRC calculates the official amount when you file. The box figures above are the ones to copy into your return.</div>
+    </div>
+
+    <div class="rp-foot">
+      ${esc(settings.biz||"Tuathan")} · Self Assessment working summary, ${esc(yearKey)} · Generated by Cuntas on ${nowStr}.
+      Deadlines: file online and pay by <b>31 January ${parseInt(y.end.slice(0,4),10)+1}</b>. Keep receipts, bills and this summary — HMRC can ask for records up to 5 years after the filing deadline. Categories are mapped to SA103S boxes in good faith; an accountant may fine-tune the mapping (e.g. bank charges can sit in box 17). This document is a working summary, not professional tax advice.
+    </div>`;
+
+  $("reportOverlay").style.display = "block";
+  document.body.classList.add("report-open");
+  $("reportOverlay").scrollTop = 0;
+}
+
+// ================= invoice =================
+function buildInvoice(){
+  const client = $("ivClient").value.trim();
+  const items = [];
+  [["ivD1","ivA1"],["ivD2","ivA2"],["ivD3","ivA3"]].forEach(pair => {
+    const desc = $(pair[0]).value.trim(), amt = parseFloat($(pair[1]).value);
+    if (desc && !isNaN(amt) && amt > 0) items.push({ desc, amt });
+  });
+  if (!client || !items.length){
+    alert("Add a client name and at least one item with an amount.");
+    return;
+  }
+  const dep = parseFloat($("ivDep").value) || 0;
+  const total = items.reduce((sm,i)=>sm+i.amt, 0);
+  const due = Math.max(0, total - dep);
+  const num = "INV-" + new Date().getFullYear() + "-" + String(settings.invNo || 1).padStart(3,"0");
+  settings.invNo = (settings.invNo || 1) + 1;
+  store.set(S_KEY, JSON.stringify(settings));
+  const nowStr = new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
+  const addrLine = $("ivAddr").value.trim();
+  $("rpBody").innerHTML = `
+    <div class="rp-head">
+      <img src="logo.svg" alt="${esc(settings.biz||"Tuathan")} logo" onerror="this.onerror=null;this.src='icon-192.png'">
+      <div>
+        <div class="biz">${esc(settings.biz||"Tuathan")}</div>
+        <div class="tag">Irish language &amp; art · Ealaín agus Gaeilge</div>
+      </div>
+      <div class="rp-contact">
+        ${settings.owner?esc(settings.owner)+"<br>":""}
+        ${settings.addr?esc(settings.addr)+"<br>":""}
+        ${settings.email?esc(settings.email)+"<br>":""}
+        ${settings.utr?"UTR: "+esc(settings.utr):""}
+      </div>
+    </div>
+    <h1>Invoice ${num}</h1>
+    <div class="meta">Issued ${nowStr} · Sole trader</div>
+    <div class="rp-sec prof">
+      <h2>🟡 Billed to</h2>
+      <div style="font-size:17px;font-weight:700">${esc(client)}</div>
+      ${addrLine?`<div class="rp-note">${esc(addrLine)}</div>`:""}
+    </div>
+    <div class="rp-sec inc">
+      <h2>🟢 Work — Obair</h2>
+      ${items.map(i=>`<div class="rp-box"><span class="l">${esc(i.desc)}</span><span class="v">${gbp(i.amt,2)}</span></div>`).join("")}
+      <div class="rp-box"><span class="l"><b>Total</b></span><span class="v rp-big">${gbp(total,2)}</span></div>
+      ${dep>0?`<div class="rp-box"><span class="l">Deposit received — go raibh maith agat</span><span class="v">−${gbp(dep,2)}</span></div>
+      <div class="rp-box"><span class="l"><b>Balance due</b></span><span class="v rp-big">${gbp(due,2)}</span></div>`:""}
+    </div>
+    <div class="rp-sec tax">
+      <h2>🔵 Payment</h2>
+      ${settings.pay?`<div class="rp-box"><span class="l" style="font-weight:600">${esc(settings.pay)}</span></div>`:`<div class="rp-note">Tip: add your payment details in Settings and they will appear here automatically.</div>`}
+      <div class="rp-note">${esc($("ivTerms").value.trim() || "Payment within 14 days, please.")} · Not VAT registered — no VAT is charged.</div>
+    </div>
+    <div class="rp-foot">${esc(settings.biz||"Tuathan")}${settings.addr?" · "+esc(settings.addr):""}${settings.email?" · "+esc(settings.email):""} · Generated by Cuntas on ${nowStr}. Go raibh míle maith agat as do ghnó.</div>`;
+  $("reportOverlay").style.display = "block";
+  document.body.classList.add("report-open");
+  $("reportOverlay").scrollTop = 0;
+}
+
+// ================= CSV backup export =================
+function exportCSV(){
+  const d = compute();
+  const rows = [["date","type","category","description","amount","miles","imported_id"]];
+  d.inYear.forEach(e => rows.push([e.date,e.type,e.cat,'"'+e.desc.replace(/"/g,'""')+'"',(e.amount||0).toFixed(2),e.miles||"",e.ext||""]));
+  if (d.mileage>0) rows.push(["","summary","Mileage allowance total",'""',d.mileage.toFixed(2),d.miles,""]);
+  if (d.recPhone>0) rows.push(["","summary","Phone/internet auto-claim",'""',d.recPhone.toFixed(2),"",""]);
+  if (d.recHome>0) rows.push(["","summary","Home working auto-claim",'""',d.recHome.toFixed(2),"",""]);
+  const blob = new Blob([rows.map(r=>r.join(",")).join("\n")],{type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `cuntas-${yearKey.replace("/","-")}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ================= wire up =================
+$("yearPick").innerHTML = Object.keys(TAX_YEARS).map(k=>`<option value="${k}">Tax year ${k}</option>`).join("");
+$("yearPick").value = yearKey;
+$("yearPick").onchange = e => { yearKey = e.target.value; render(); };
+$("fDate").value = todayISO();
+$("tabInc").onclick = ()=>{ cancelEdit(); setTab("income"); };
+$("tabExp").onclick = ()=>{ cancelEdit(); setTab("expense"); };
+$("tabMil").onclick = ()=>{ cancelEdit(); setTab("mileage"); };
+$("addBtn").onclick = addEntry;
+["fDesc","fAmount","fTo","fFrom","fMilesOne"].forEach(id => $(id).addEventListener("keydown", e => { if(e.key==="Enter") addEntry(); }));
+$("fTo").addEventListener("input", ()=>{ const t = trips[$("fTo").value.trim()]; if (t) $("fMilesOne").value = t; updateMilePreview(); });
+$("fMilesOne").addEventListener("input", updateMilePreview);
+$("fReturn").addEventListener("change", updateMilePreview);
+$("scanBtn").onclick = ()=> $("receiptFile").click();
+$("receiptFile").onchange = e => { scanReceipt(e.target.files && e.target.files[0]); e.target.value=""; };
+$("importBtn").onclick = ()=> $("csvFile").click();
+$("csvFile").onchange = e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const res = importCSVText(reader.result);
+    $("importMsg").innerHTML = res.error ? `<div class="err">${esc(res.error)}</div>` : `<div class="ok">${esc(res.ok)}</div>`;
+  };
+  reader.onerror = () => { $("importMsg").innerHTML = `<div class="err">Couldn't read that file — try downloading it again.</div>`; };
+  reader.readAsText(f);
+};
+$("csvBtn").onclick = exportCSV;
+$("bakBtn").onclick = () => {
+  const blob = new Blob([JSON.stringify({ app:"cuntas", entries, settings, trips }, null, 1)], { type:"application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "cuntas-backup.json"; a.click();
+  URL.revokeObjectURL(url);
+};
+$("resBtn").onclick = () => $("resFile").click();
+$("resFile").onchange = e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const d = JSON.parse(r.result);
+      if (d.app !== "cuntas" || !Array.isArray(d.entries)) throw new Error("not a Cuntas backup");
+      if (!confirm(`Restore ${d.entries.length} entries? This replaces what's here now.`)) return;
+      entries = d.entries;
+      if (d.settings) Object.assign(settings, d.settings);
+      if (d.trips) trips = d.trips;
+      store.set(S_KEY, JSON.stringify(settings));
+      store.set(T_KEY, JSON.stringify(trips));
+      persist(); updateScanStatus(); render();
+    } catch(err){ alert("That doesn't look like a Cuntas backup file."); }
+  };
+  r.readAsText(f);
+};
+$("reportBtn").onclick = buildReport;
+$("ivBtn").onclick = buildInvoice;
+$("rpClose").onclick = () => { $("reportOverlay").style.display="none"; document.body.classList.remove("report-open"); };
+$("rpPrint").onclick = () => window.print();
+$("filters").addEventListener("click", e => { const v = e.target.dataset && e.target.dataset.v; if (v){ view=v; render(); } });
+$("list").addEventListener("click", async e => {
+  const img = e.target.dataset && e.target.dataset.img;
+  if (img){
+    const rec = await dbGet(img);
+    if (rec && rec.blob){
+      const u = URL.createObjectURL(rec.blob);
+      $("imgViewImg").src = u;
+      $("imgView").style.display = "flex";
+    }
+    return;
+  }
+  const ed = e.target.dataset && e.target.dataset.edit;
+  if (ed){ startEdit(ed); return; }
+  const id = e.target.dataset && e.target.dataset.id;
+  if (id){
+    if (editingId === id) cancelEdit();
+    entries = entries.filter(x=>x.id!==id); persist(); render();
+  }
+});
+$("imgView").addEventListener("click", ()=>{
+  $("imgView").style.display = "none";
+  if ($("imgViewImg").src) URL.revokeObjectURL($("imgViewImg").src);
+  $("imgViewImg").src = "";
+});
+
+// settings
+$("sPhone").value = settings.phone || "";
+$("sHome").value = settings.home || "";
+$("sKey").value = settings.key || "";
+$("sBiz").value = settings.biz || "";
+$("sOwner").value = settings.owner || "";
+$("sAddr").value = settings.addr || "";
+$("sEmail").value = settings.email || "";
+$("sUtr").value = settings.utr || "";
+$("sPay").value = settings.pay || "";
+$("saveSettings").onclick = () => {
+  settings.phone = parseFloat($("sPhone").value) || 0;
+  settings.home = parseFloat($("sHome").value) || 0;
+  settings.key = $("sKey").value.trim();
+  settings.biz = $("sBiz").value.trim() || "Tuathan";
+  settings.owner = $("sOwner").value.trim();
+  settings.addr = $("sAddr").value.trim();
+  settings.email = $("sEmail").value.trim();
+  settings.utr = $("sUtr").value.trim();
+  settings.pay = $("sPay").value.trim();
+  store.set(S_KEY, JSON.stringify(settings));
+  $("setMsg").innerHTML = `<div class="ok">Settings saved. Recurring claims apply automatically, and your letterhead is ready for the HMRC report.</div>`;
+  setTimeout(()=> $("setMsg").innerHTML = "", 3500);
+  updateScanStatus();
+  render();
+};
+
+$("vaultBtn").onclick = downloadVault;
+$("vaultList").addEventListener("click", async e => {
+  const id = e.target.dataset && e.target.dataset.vdel;
+  if (id && confirm("Delete this receipt image? It can't be undone — HMRC records should usually be kept.")){
+    await dbDel(id);
+    renderVault();
+  }
+});
+
+setTab("income");
+updateScanStatus();
+render();
+openDB().then(db => { idb = db; renderVault(); });
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+</script>
+</body>
+</html>
