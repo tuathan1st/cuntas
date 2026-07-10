@@ -1,8 +1,0 @@
-{
-  "appId": "com.tuathan.cuntas",
-  "appName": "Cuntas",
-  "webDir": "www",
-  "server": {
-    "androidScheme": "https"
-  }
-}
