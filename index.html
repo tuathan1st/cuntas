@@ -191,7 +191,11 @@
     <h2>Scan admhála <span>·</span> photograph a receipt</h2>
     <p class="hint">Snap a receipt or invoice. The photo is squashed down to a few dozen kilobytes and saved to your receipts vault below, and a reader built into the app works out the amount, date, shop and category — all on this phone, fully offline, nothing ever leaves the device. Check what it found in the form, then press Add to link entry and photo together.</p>
     <input type="file" id="receiptFile" accept="image/*" capture="environment" style="display:none">
-    <button class="bigbtn" id="scanBtn">📷 Take or upload a receipt photo</button>
+    <input type="file" id="receiptFile2" accept="image/*" style="display:none">
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="bigbtn" id="scanBtn" style="flex:1;min-width:160px">📷 Take a photo</button>
+      <button class="bigbtn" id="uploadBtn" style="flex:1;min-width:160px">🖼 Upload a receipt / invoice</button>
+    </div>
     <p class="hint" id="scanStatus" style="margin:8px 0 0"></p>
     <div id="scanMsg"></div>
   </div>
@@ -226,6 +230,7 @@
       <div class="full hint" id="milePreview" style="display:none;margin:0"></div>
       <button class="add" id="addBtn">Add income</button>
     </div>
+    <div id="formMsg"></div>
     <datalist id="destList"></datalist>
   </div>
 
@@ -750,15 +755,28 @@ function cancelEdit(){
   $("addBtn").textContent = tab==="income" ? "Add income" : tab==="expense" ? "Add expense" : "Add trip";
 }
 
+function cleanMoney(v){
+  let t = String(v==null?"":v).trim().replace(/[£$€\s]/g,"");
+  if (t.includes(",") && !t.includes(".")) t = t.replace(",", ".");
+  else t = t.replace(/,/g,"");
+  return parseFloat(t);
+}
+function formSay(kind, text){
+  const m = $("formMsg");
+  if (!m) return;
+  m.innerHTML = `<div class="${kind}">${text}</div>`;
+  if (kind === "ok") setTimeout(()=>{ if(m.firstChild && m.firstChild.className==="ok") m.innerHTML=""; }, 2500);
+}
 function addEntry(){
-  const date = $("fDate").value;
-  if (!date) return;
+  let date = $("fDate").value;
+  if (!date){ date = todayISO(); $("fDate").value = date; }
   let entry;
   if (tab==="mileage"){
     const from = $("fFrom").value.trim() || "Home";
     const to = $("fTo").value.trim();
     const one = parseFloat($("fMilesOne").value);
-    if (!to || isNaN(one) || one<=0) return;
+    if (!to){ formSay("err","Where did you drive to? Fill in the To box."); return; }
+    if (isNaN(one) || one<=0){ formSay("err","Add the one-way miles (look it up once on Google Maps)."); return; }
     const ret = $("fReturn").checked;
     const miles = Math.round(one * (ret?2:1) * 10) / 10;
     const desc = ret ? `${from} → ${to} → ${from}` : `${from} → ${to}`;
@@ -768,9 +786,9 @@ function addEntry(){
     $("fTo").value = ""; $("fMilesOne").value = ""; renderDestList(); updateMilePreview();
   } else {
     const desc = $("fDesc").value.trim();
-    if (!desc) return;
-    const amt = parseFloat($("fAmount").value);
-    if (isNaN(amt) || amt<=0) return;
+    if (!desc){ formSay("err","Add a short description first — e.g. what was sold or bought."); return; }
+    const amt = cleanMoney($("fAmount").value);
+    if (isNaN(amt) || amt<=0){ formSay("err","Add the £ amount (numbers only)."); return; }
     entry = { id: editingId || uid(), type: tab, date, desc, cat: $("fCat").value, amount: Math.round(amt*100)/100 };
     if (pendingImgId){ entry.imgId = pendingImgId; pendingImgId = null; }
   }
@@ -784,6 +802,7 @@ function addEntry(){
   }
   persist();
   $("fDesc").value = ""; $("fAmount").value = "";
+  formSay("ok", (entry.type==="mileage" ? "Trip added" : entry.type==="income" ? "Income added" : "Expense added") + " ✓");
   render();
 }
 
@@ -855,6 +874,15 @@ function findCol(headers, ...needles){
   return -1;
 }
 
+function guessExpenseCat(txt){
+  const t = txt.toLowerCase();
+  if (/shipping label|postage|post office|royal mail|parcel|delivery/.test(t)) return "Postage & packaging";
+  if (/fee|processing|commission|transaction/.test(t)) return "Platform fees (Etsy, SumUp)";
+  if (/marketing|advertis|etsy ads|offsite ads|promot/.test(t)) return "Advertising & marketing";
+  if (/listing/.test(t)) return "Platform fees (Etsy, SumUp)";
+  if (/subscription|plus/.test(t)) return "Website & software";
+  return "Other expense";
+}
 function importCSVText(text){
   const rows = parseCSV(text);
   if (rows.length < 2) return { error: "That file looks empty — check it's the CSV export and try again." };
@@ -871,14 +899,25 @@ function importCSVText(text){
   const idCol = findCol(headers,"order id","transaction code","transaction id","receipt","reference","id");
   const nameCol = findCol(headers,"full name","buyer","description","card","payment type","payment method");
   const statusCol = findCol(headers,"status");
+  const feeCol = findCol(headers,"fees & taxes","fee amount","fee");
+  const typeCol = findCol(headers,"type","title");
 
   if (dateCol===-1 || amtCol===-1)
     return { error: "I couldn't find date and amount columns in that file. Make sure it's the orders/transactions CSV straight from Etsy or SumUp." };
 
   const existingExt = new Set(entries.filter(e=>e.ext).map(e=>e.ext));
   const existingSig = new Set(entries.map(e=>e.type+"|"+e.date+"|"+(e.amount||0).toFixed(2)+"|"+e.desc));
-  let added=0, dupes=0, skipped=0;
+  let added=0, addedExp=0, dupes=0, skipped=0;
   const newOnes = [];
+  const pushEntry = (entry, extId) => {
+    if (extId && existingExt.has(extId)){ dupes++; return; }
+    const sig = entry.type+"|"+entry.date+"|"+entry.amount.toFixed(2)+"|"+entry.desc;
+    if (!extId && existingSig.has(sig)){ dupes++; return; }
+    if (extId){ entry.ext = extId; existingExt.add(extId); }
+    existingSig.add(sig);
+    newOnes.push(entry);
+    if (entry.type==="income") added++; else addedExp++;
+  };
 
   for (let r=1;r<rows.length;r++){
     const row = rows[r];
@@ -888,36 +927,51 @@ function importCSVText(text){
     }
     const amount = parseMoney(row[amtCol]);
     const date = parseDateFlexible(row[dateCol], platform);
-    if (!date || isNaN(amount) || amount<=0){ skipped++; continue; }
+    if (!date || isNaN(amount) || amount===0){ skipped++; continue; }
 
     const extId = idCol!==-1 && row[idCol] ? platform+":"+String(row[idCol]).trim() : null;
     const who = nameCol!==-1 ? String(row[nameCol]||"").trim() : "";
-    const desc = platform==="etsy"
-      ? `Etsy order${idCol!==-1?" #"+String(row[idCol]).trim():""}${who?" — "+who:""}`
-      : platform==="sumup"
-      ? `SumUp sale${who?" — "+who:""}${extId?" ("+String(row[idCol]).trim()+")":""}`
-      : `Imported sale${who?" — "+who:""}`;
-    const cat = platform==="etsy" ? "Etsy order" : platform==="sumup" ? "SumUp / shop sale" : "Other income";
+    const rowText = row.join(" ");
+    const typeTxt = typeCol!==-1 ? String(row[typeCol]||"").trim() : "";
 
-    if (extId && existingExt.has(extId)){ dupes++; continue; }
-    const sig = "income|"+date+"|"+amount.toFixed(2)+"|"+desc;
-    if (!extId && existingSig.has(sig)){ dupes++; continue; }
+    if (amount > 0){
+      const desc = platform==="etsy"
+        ? `Etsy order${idCol!==-1?" #"+String(row[idCol]).trim():""}${who?" — "+who:""}`
+        : platform==="sumup"
+        ? `SumUp sale${who?" — "+who:""}${extId?" ("+String(row[idCol]).trim()+")":""}`
+        : `Imported sale${who?" — "+who:""}`;
+      const cat = platform==="etsy" ? "Etsy order" : platform==="sumup" ? "SumUp / shop sale" : "Other income";
+      pushEntry({ id:uid(), type:"income", date, desc, cat, amount: Math.round(amount*100)/100 }, extId);
+    } else {
+      // negative amount = money out (Etsy statement fees, shipping labels, ads...)
+      const spent = Math.abs(amount);
+      const what = typeTxt || who || "imported cost";
+      pushEntry({ id:uid(), type:"expense", date,
+        desc: `${platform==="etsy"?"Etsy":platform==="sumup"?"SumUp":"Imported"}: ${what}`,
+        cat: guessExpenseCat(rowText),
+        amount: Math.round(spent*100)/100 }, extId ? extId+"-out" : null);
+    }
 
-    const entry = { id:uid(), type:"income", date, desc, cat, amount: Math.round(amount*100)/100 };
-    if (extId){ entry.ext = extId; existingExt.add(extId); }
-    existingSig.add(sig);
-    newOnes.push(entry);
-    added++;
+    // separate fee column (Etsy statements: "Fees & Taxes", SumUp: "Fee")
+    if (feeCol !== -1){
+      const fee = Math.abs(parseMoney(row[feeCol]) || 0);
+      if (fee > 0){
+        pushEntry({ id:uid(), type:"expense", date,
+          desc: `${platform==="etsy"?"Etsy":platform==="sumup"?"SumUp":"Platform"} fee${typeTxt?" — "+typeTxt:who?" — "+who:""}`,
+          cat: "Platform fees (Etsy, SumUp)",
+          amount: Math.round(fee*100)/100 }, extId ? extId+"-fee" : null);
+      }
+    }
   }
 
-  if (added){
+  if (added || addedExp){
     entries = entries.concat(newOnes);
     entries.sort((a,b)=> a.date<b.date ? 1 : b.date<a.date ? -1 : 0);
     persist();
     render();
   }
   const pName = platform==="etsy" ? "Etsy" : platform==="sumup" ? "SumUp" : "sales";
-  return { ok:`Recognised a ${pName} file: imported ${added} new sale${added===1?"":"s"} in date order${dupes?`, skipped ${dupes} already imported`:""}${skipped?`, ignored ${skipped} refunded/unreadable row${skipped===1?"":"s"}`:""}.` };
+  return { ok:`Recognised a ${pName} file: imported ${added} sale${added===1?"":"s"} and ${addedExp} cost${addedExp===1?"":"s"} (fees, postage...) in date order${dupes?`, skipped ${dupes} already imported`:""}${skipped?`, ignored ${skipped} unreadable row${skipped===1?"":"s"}`:""}.` };
 }
 
 // ================= receipt scanning + vault storage (fully on-device, no AI, no internet) =================
@@ -1113,7 +1167,7 @@ async function scanReceipt(file){
     msg.innerHTML = `<div class="err">The reader stumbled on that photo (${esc(e.message||"error")}) — it's still saved to your vault (${kb} KB). Add the entry by hand.</div>`;
   } finally {
     $("scanBtn").disabled = false;
-    $("scanBtn").textContent = "📷 Take or upload a receipt photo";
+    $("scanBtn").textContent = "📷 Take a photo";
   }
 }
 
@@ -1295,7 +1349,9 @@ $("fTo").addEventListener("input", ()=>{ const t = trips[$("fTo").value.trim()];
 $("fMilesOne").addEventListener("input", updateMilePreview);
 $("fReturn").addEventListener("change", updateMilePreview);
 $("scanBtn").onclick = ()=> $("receiptFile").click();
+$("uploadBtn").onclick = ()=> $("receiptFile2").click();
 $("receiptFile").onchange = e => { scanReceipt(e.target.files && e.target.files[0]); e.target.value=""; };
+$("receiptFile2").onchange = e => { scanReceipt(e.target.files && e.target.files[0]); e.target.value=""; };
 $("importBtn").onclick = ()=> $("csvFile").click();
 $("csvFile").onchange = e => {
   const f = e.target.files && e.target.files[0];
@@ -1408,6 +1464,19 @@ setTab("income");
 updateScanStatus();
 render();
 openDB().then(db => { idb = db; renderVault(); });
+
+window.addEventListener("error", (ev) => {
+  try {
+    let b = document.getElementById("errBanner");
+    if (!b){
+      b = document.createElement("div");
+      b.id = "errBanner";
+      b.style.cssText = "position:fixed;bottom:0;left:0;right:0;background:#7a3426;color:#f2ead9;font-size:12px;padding:8px 12px;z-index:99;font-family:monospace";
+      document.body.appendChild(b);
+    }
+    b.textContent = "App error: " + (ev.message || "unknown") + " — screenshot this for Claude";
+  } catch(e){}
+});
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").catch(()=>{});
